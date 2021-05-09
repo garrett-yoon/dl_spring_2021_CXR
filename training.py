@@ -20,6 +20,7 @@ from collections import Counter
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
 from torchvision.datasets import ImageFolder
 import torch.optim as optim
@@ -82,6 +83,7 @@ class EarlyStopping:
         # self.val_loss_min = val_loss
         pass
 
+# Training loop function
 def train_model(model, 
                 criterion, 
                 optimizer, 
@@ -178,6 +180,8 @@ def train_model(model,
     
     return model, acc_loss_dict
 
+
+# Re-train model
 def retrain(MODEL, PRETRAIN, MAX_EPOCHS = 50):
     #Training code
 
@@ -304,4 +308,73 @@ def retrain(MODEL, PRETRAIN, MAX_EPOCHS = 50):
 
     print("Saved!")
 
+    # Run on test set
+
+    torch.cuda.empty_cache()
+    model_ft.eval()
+
+    model_no_fc = copy.deepcopy(model_ft)
+    if MODEL == 'densenet121':
+        model_no_fc.classifier = torch.nn.Identity()
+        model_no_fc.eval()
+    else:
+        model_no_fc.fc = torch.nn.Identity()
+        model_no_fc.eval()
+
+    test_loader = DataLoader(dataset=datasets['test'],batch_size =4,
+                                 shuffle=False)
+
+    idx_to_class = {v:k for k,v in init_dataset.class_to_idx.items()}
+
+    features_by_phase = {}
+    logits_by_phase = {}
+    predsTruths_by_phase = {}
+
+    for phase in ['test']:
+
+        if phase == 'train':
+            loader = train_loader
+        if phase == 'val':
+            loader = val_loader
+        if phase == 'test':
+            loader = test_loader
+        print("Phase:", phase)
+        print("Size of Loader", len(loader))
+        logits = []
+        predictions = []
+        labels = []
+        bn_features = []
+
+        for batchID, (X, Y) in enumerate(loader):
+
+            Y = Y.cuda()
+            X = X.cuda()
+
+            bn_feat = model_no_fc(X)
+            logit = model_ft(X)
+            _, preds = torch.max(logit, 1)
+            
+            bn_features.append(bn_feat.detach().cpu())
+            logits.append(logit.detach().cpu())
+            predictions.append(preds.cpu())
+            labels.append(Y.detach().cpu())
+        
+        batch_feat_test = torch.cat(bn_features, dim=0)
+        batch_logits_test = torch.cat(logits, dim=0)
+        batch_pred_test = torch.cat(predictions, dim=0)
+        batch_lab_test = torch.cat(labels, dim = 0)
+
+        batch_pred_test = torch.reshape(batch_pred_test, (batch_pred_test.shape[0], 1))
+        batch_lab_test = torch.reshape(batch_lab_test, (batch_lab_test.shape[0],1))
+        batch_pl_test = torch.cat([batch_pred_test, batch_lab_test], dim=1)
+        pred_true_test = pd.DataFrame(batch_pl_test.numpy(), columns = ['Pred', 'True'])
+        pred_true_test = pred_true_test.replace(idx_to_class)
+
+        features_by_phase[phase] = batch_feat_test
+        logits_by_phase[phase] = batch_logits_test
+        predsTruths_by_phase[phase] = pred_true_test
+
+
+
+    print(classification_report(pred_true_test['Pred'], pred_true_test['True'], digits=4))
 
