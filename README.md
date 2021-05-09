@@ -1,8 +1,8 @@
-# COVID 19 Radiography Database
+# Detection of COVID-19 from Chest X-rays Using Convolutional Neural Networks
 
 Images need to be loaded in COVID-19 Radiography folder.
  
-Run main.py to train model using CXR images. Model and number of epochs can be edited in the file.
+Run main.py to train model using CXR images. Model and number of epochs can be edited in the file. Output folder will be generated in the same directory with time-stamp.
 
 model.py contains pre-built in models from torchvision.
 
