@@ -11,3 +11,5 @@ model.py contains pre-built in models from torchvision.
 training.py has code with training loops
 
 cnn_ml_fvectors.py utilizes machine learning + pre-trained CNN models to predict labels from CXR images.
+
+Paper link: https://pdfhost.io/v/bX77L9K7p_DL_Project_GY_YL_2021
